@@ -1,0 +1,48 @@
+stages:
+  - test
+  - build
+  - deploy
+
+before_script:
+  - |
+    if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+      tag="latest"
+      echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
+    else
+      tag="$CI_COMMIT_REF_SLUG"
+      echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
+    fi
+
+flask test:
+  stage: test
+  image: python:3.11-slim-buster
+  script:
+    - pip install -r requirements.txt
+    - flask --version
+  tags:
+    - docker
+    
+docker build:
+  stage: build
+  image: docker:stable
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - sed -i s/%%COMMIT%%/${CI_COMMIT_SHORT_SHA}/g ./templates/base.html
+    - docker build -t ${CI_REGISTRY_IMAGE}:${tag} .
+    - docker push ${CI_REGISTRY_IMAGE}:${tag}
+  tags:
+    - docker
+    
+deploy to dev:
+  stage: deploy
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker pull ${CI_REGISTRY_IMAGE}:${tag}
+    - docker rm -f keras-flask-webapp || echo "no conainer found"
+    - docker run --name keras-flask-webapp -d -p 5000:5000 ${CI_REGISTRY_IMAGE}:${tag}
+  tags:
+    - dev-shell
