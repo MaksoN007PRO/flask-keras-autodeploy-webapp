@@ -1,6 +1,6 @@
 FROM python:3.11-slim-buster
 
-# Install dependencies
+## Install dependencies
 COPY requirements.txt /tmp/
 RUN pip install --requirement /tmp/requirements.txt
 
