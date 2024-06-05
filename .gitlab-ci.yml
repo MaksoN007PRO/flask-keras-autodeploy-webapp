@@ -24,9 +24,12 @@ flask test:
     
 docker build:
   stage: build
-  image: docker:20-dind
+  image: docker:stable
   variables:
     DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+
   services:
     - docker:dind
   script:
